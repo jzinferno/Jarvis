@@ -1,9 +1,9 @@
-import torch
 from vosk import Model, KaldiRecognizer
+import json, os, torch, time
 import sounddevice as sd
 from queue import Queue
-import json, os
-from num2words import num2words
+
+torch.set_num_threads(os.cpu_count())
 
 class Assistant(object):
     def __init__(self) -> None:
@@ -43,24 +43,16 @@ class Assistant(object):
                     yield str(json.loads(rec.Result())['text']).split()
 
     def format_string(self, text: str):
-        res = text.lower().split()
-
-        for word in res:
-            if word.isnumeric():
-                res[res.index(word)] = num2words(int(word), lang='ru')
-
-        result = ' '.join(res)
-
-        if not result.endswith('.'):
-            result += '.'
-
+        if not text.endswith('.'):
+            result = text + '.'
+        else:
+            result = text
         return result
 
     def tts(self, text: str) -> None:
         self.process.stop()
-        audio = self.silero_model.apply_tts(text=self.format_string(text),
-                            speaker='baya',
-                            sample_rate=self.sample_rate_tts)
-        sd.play(audio, self.sample_rate_tts, blocking=True)
+        audio = self.silero_model.apply_tts(text=self.format_string(text), speaker='baya', sample_rate=self.sample_rate_tts)
+        sd.play(audio, self.sample_rate_tts * 1.05)
+        time.sleep((len(audio) / self.sample_rate_tts) + 0.5)
         sd.stop()
         self.process.start()
